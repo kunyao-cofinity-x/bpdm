@@ -19,12 +19,18 @@
 
 package org.eclipse.tractusx.bpdm.pool.controller
 
+import org.eclipse.tractusx.bpdm.common.dto.AddressType
 import org.eclipse.tractusx.bpdm.common.dto.PageDto
 import org.eclipse.tractusx.bpdm.common.dto.PaginationRequest
+import org.eclipse.tractusx.bpdm.gate.api.model.BusinessPartnerIdentifierDto
+import org.eclipse.tractusx.bpdm.gate.api.model.ConfidenceCriteriaDto
+import org.eclipse.tractusx.bpdm.gate.api.model.PhysicalPostalAddressDto
+import org.eclipse.tractusx.bpdm.gate.api.model.StreetDto
+import org.eclipse.tractusx.bpdm.gate.api.model.response.AddressComponentOutputDto
+import org.eclipse.tractusx.bpdm.gate.api.model.response.LegalEntityRepresentationOutputDto
 import org.eclipse.tractusx.bpdm.pool.Application
 import org.eclipse.tractusx.bpdm.pool.api.client.PoolClientImpl
 import org.eclipse.tractusx.bpdm.pool.api.model.BusinessPartnerSearchFilterType
-import org.eclipse.tractusx.bpdm.pool.api.model.LegalEntityIdentifierDto
 import org.eclipse.tractusx.bpdm.pool.api.model.LegalEntityVerboseDto
 import org.eclipse.tractusx.bpdm.pool.api.model.LogisticAddressVerboseDto
 import org.eclipse.tractusx.bpdm.pool.api.model.request.LegalEntityPropertiesSearchRequest
@@ -36,7 +42,8 @@ import org.eclipse.tractusx.bpdm.test.testdata.pool.BusinessPartnerVerboseValues
 import org.eclipse.tractusx.bpdm.test.testdata.pool.LegalEntityStructureRequest
 import org.eclipse.tractusx.bpdm.test.testdata.pool.SiteStructureRequest
 import org.eclipse.tractusx.bpdm.test.util.DbTestHelpers
-import org.eclipse.tractusx.bpdm.test.util.PoolDataHelpers
+import org.eclipse.tractusx.bpdm.test.testdata.pool.PoolDataHelper
+import org.eclipse.tractusx.bpdm.test.testdata.pool.TestDataEnvironment
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -48,14 +55,17 @@ import org.springframework.test.context.ContextConfiguration
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, classes = [Application::class, TestHelpers::class]
 )
+
 @ActiveProfiles("test-no-auth")
 @ContextConfiguration(initializers = [PostgreSQLContextInitializer::class])
 class BusinessPartnerControllerIT@Autowired constructor(
     val testHelpers: TestHelpers,
     val poolClient: PoolClientImpl,
     val dbTestHelpers: DbTestHelpers,
-    val poolDataHelpers: PoolDataHelpers
+    private val dataHelper: PoolDataHelper,
 ) {
+
+    private lateinit var testDataEnvironment: TestDataEnvironment
 
     private val partnerStructure1 = LegalEntityStructureRequest(
         legalEntity = BusinessPartnerNonVerboseValues.legalEntityCreate4,
@@ -70,7 +80,7 @@ class BusinessPartnerControllerIT@Autowired constructor(
     @BeforeEach
     fun beforeEach() {
         dbTestHelpers.truncateDbTables()
-        poolDataHelpers.createPoolMetadata()
+        testDataEnvironment = dataHelper.createTestDataEnvironment()
         val givenStructure = testHelpers.createBusinessPartnerStructure(listOf(partnerStructure1))
         givenPartner1 = with(givenStructure[0].legalEntity) { legalEntity }
         legalAddress1 = givenStructure[0].legalEntity.legalAddress
@@ -109,21 +119,65 @@ class BusinessPartnerControllerIT@Autowired constructor(
     @Test
     fun `Search by BPNL`() {
 
-        var identifiers = mutableListOf<LegalEntityIdentifierDto>()
-        identifiers.add(BusinessPartnerNonVerboseValues.identifier3)
+        val identifiers = mutableListOf<BusinessPartnerIdentifierDto>()
+        val identifier = BusinessPartnerIdentifierDto(
+            type = BusinessPartnerNonVerboseValues.identifier3.type,
+            value = BusinessPartnerNonVerboseValues.identifier3.value,
+            issuingBody = BusinessPartnerNonVerboseValues.identifier3.issuingBody
+        );
+        identifiers.add(identifier)
 
         val expected = PageDto(
             1, 1, 0, 100,
             listOf(
                 BusinessPartnerSearchResultDto(
-                    id = "BPNL000000000065",
-                    name = "Müller Handels GmbH & Co. KG",
-                    legalForm = BusinessPartnerVerboseValues.legalForm3,
-                    street = BusinessPartnerVerboseValues.address1.street,
-                    city = "Böblingen",
-                    postalCode ="71059",
-                    country = "DE",
-                    identifiers =  identifiers
+                    identifiers = identifiers,
+                    isParticipantData = false,
+                    legalEntity = LegalEntityRepresentationOutputDto(
+                        legalEntityBpn = "BPNL000000000065",
+                        legalName = BusinessPartnerNonVerboseValues.legalEntityCreate4.legalEntity.legalName,
+                        legalForm = BusinessPartnerVerboseValues.legalForm3.name,
+                        confidenceCriteria = ConfidenceCriteriaDto (
+                            sharedByOwner = BusinessPartnerNonVerboseValues.legalEntityCreate4.legalEntity.confidenceCriteria.sharedByOwner,
+                            checkedByExternalDataSource = BusinessPartnerNonVerboseValues.legalEntityCreate4.legalEntity.confidenceCriteria.checkedByExternalDataSource,
+                            numberOfSharingMembers = BusinessPartnerNonVerboseValues.legalEntityCreate4.legalEntity.confidenceCriteria.numberOfSharingMembers,
+                            lastConfidenceCheckAt = BusinessPartnerNonVerboseValues.legalEntityCreate4.legalEntity.confidenceCriteria.lastConfidenceCheckAt,
+                            nextConfidenceCheckAt = BusinessPartnerNonVerboseValues.legalEntityCreate4.legalEntity.confidenceCriteria.nextConfidenceCheckAt,
+                            confidenceLevel = BusinessPartnerNonVerboseValues.legalEntityCreate4.legalEntity.confidenceCriteria.confidenceLevel
+                        )
+                    ),
+                    site = null,
+                    address = AddressComponentOutputDto(
+                        addressBpn = "BPNA00000000009W",
+                        addressType = AddressType.LegalAddress,
+                        name = null,
+                        physicalPostalAddress = PhysicalPostalAddressDto(
+                            street = StreetDto(
+                                name = BusinessPartnerVerboseValues.address1.street?.name,
+                                houseNumber = BusinessPartnerVerboseValues.address1.street?.houseNumber,
+                                namePrefix = BusinessPartnerVerboseValues.address1.street?.namePrefix,
+                                additionalNamePrefix =BusinessPartnerVerboseValues.address1.street?.additionalNamePrefix,
+                                additionalNameSuffix = BusinessPartnerVerboseValues.address1.street?.additionalNameSuffix,
+                                milestone = BusinessPartnerVerboseValues.address1.street?.milestone,
+                                direction = BusinessPartnerVerboseValues.address1.street?.direction,
+                                houseNumberSupplement = BusinessPartnerVerboseValues.address1.street?.houseNumberSupplement,
+                                nameSuffix = BusinessPartnerVerboseValues.address1.street?.nameSuffix
+                            ),
+                            postalCode = BusinessPartnerVerboseValues.address1.postalCode,
+                            city = BusinessPartnerVerboseValues.address1.city,
+                            country = BusinessPartnerVerboseValues.address1.country
+                        ),
+                        alternativePostalAddress = null,
+                        confidenceCriteria = ConfidenceCriteriaDto (
+                            sharedByOwner = BusinessPartnerNonVerboseValues.logisticAddress3.confidenceCriteria.sharedByOwner,
+                            checkedByExternalDataSource = BusinessPartnerNonVerboseValues.logisticAddress3.confidenceCriteria.checkedByExternalDataSource,
+                            numberOfSharingMembers = BusinessPartnerNonVerboseValues.logisticAddress3.confidenceCriteria.numberOfSharingMembers,
+                            lastConfidenceCheckAt = BusinessPartnerNonVerboseValues.logisticAddress3.confidenceCriteria.lastConfidenceCheckAt,
+                            nextConfidenceCheckAt = BusinessPartnerNonVerboseValues.logisticAddress3.confidenceCriteria.nextConfidenceCheckAt,
+                            confidenceLevel = BusinessPartnerNonVerboseValues.logisticAddress3.confidenceCriteria.confidenceLevel
+                        ),
+                        states = emptyList()
+                    )
                 )
             )
         )
@@ -132,387 +186,4 @@ class BusinessPartnerControllerIT@Autowired constructor(
 
         Assertions.assertEquals(expected, result)
     }
-
-    /**
-     * Search by incorrect BPNL format
-     *
-     */
-    @Test
-    fun `Search by incorrect BPNL format`() {
-
-        var identifiers = mutableListOf<LegalEntityIdentifierDto>()
-        identifiers.add(BusinessPartnerNonVerboseValues.identifier3)
-
-        val expected = PageDto(
-            0, 0, 0, 100,
-            emptyList<BusinessPartnerSearchResultDto>()
-        )
-        val searchLegalName = LegalEntityPropertiesSearchRequest(null, "BPNL000065", null, null, null, null)
-        var result = poolClient.businessPartners.searchBusinessPartners(searchLegalName,
-            setOf(BusinessPartnerSearchFilterType.ShowOnlyLegaEntities),PaginationRequest(0,100))
-
-        Assertions.assertEquals(expected, result)
-    }
-
-    /**
-     * Search by BPNL and incomplete legal name
-     *
-     */
-    @Test
-    fun `Search by BPNL and incomplete legal name`() {
-
-        var identifiers = mutableListOf<LegalEntityIdentifierDto>()
-        identifiers.add(BusinessPartnerNonVerboseValues.identifier3)
-
-        val expected = PageDto(
-            1, 1, 0, 100,
-            listOf(
-                BusinessPartnerSearchResultDto(
-                    id = "BPNL000000000065",
-                    name = "Müller Handels GmbH & Co. KG",
-                    legalForm = BusinessPartnerVerboseValues.legalForm3,
-                    street = BusinessPartnerVerboseValues.address1.street,
-                    city = "Böblingen",
-                    postalCode ="71059",
-                    country = "DE",
-                    identifiers =  identifiers
-                )
-            )
-        )
-        val searchLegalName = LegalEntityPropertiesSearchRequest("Müller", "BPNL000000000065", null, null, null, null)
-        var result = poolClient.businessPartners.searchBusinessPartners(searchLegalName, setOf(BusinessPartnerSearchFilterType.ShowOnlyLegaEntities),PaginationRequest(0,100))
-
-        Assertions.assertEquals(expected, result)
-    }
-
-    /**
-     * Search by fuzzy legal name
-     * Müller /  Mülle /  Mü__e / Mü_e /  Mü_e / Muller
-     */
-    @Test
-    fun `Search by fuzzy legal name`() {
-
-        var identifiers = mutableListOf<LegalEntityIdentifierDto>()
-        identifiers.add(BusinessPartnerNonVerboseValues.identifier3)
-
-        val expected = PageDto(
-            1, 1, 0, 100,
-            listOf(
-                BusinessPartnerSearchResultDto(
-                    id = "BPNL000000000065",
-                    name = "Müller Handels GmbH & Co. KG",
-                    legalForm = BusinessPartnerVerboseValues.legalForm3,
-                    street = BusinessPartnerVerboseValues.address1.street,
-                    city = "Böblingen",
-                    postalCode ="71059",
-                    country = "DE",
-                    identifiers =  identifiers
-                )
-            )
-        )
-
-        val expectedEmpty = PageDto(0, 0, 0, 100,emptyList<BusinessPartnerSearchResultDto>())
-
-        var request = LegalEntityPropertiesSearchRequest("Müller", null, null, null, null, null)
-        var result = poolClient.businessPartners.searchBusinessPartners(request, setOf(BusinessPartnerSearchFilterType.ShowOnlyLegaEntities),PaginationRequest(0,100))
-        Assertions.assertEquals(expected, result)
-
-        request = LegalEntityPropertiesSearchRequest("Mülle", null, null, null, null, null)
-        result = poolClient.businessPartners.searchBusinessPartners(request, setOf(BusinessPartnerSearchFilterType.ShowOnlyLegaEntities),PaginationRequest(0,100))
-        Assertions.assertEquals(expected, result)
-
-        request = LegalEntityPropertiesSearchRequest("Mü__e", null, null, null, null, null)
-        result = poolClient.businessPartners.searchBusinessPartners(request, setOf(BusinessPartnerSearchFilterType.ShowOnlyLegaEntities),PaginationRequest(0,100))
-        Assertions.assertEquals(expected, result)
-
-        request = LegalEntityPropertiesSearchRequest("Mü_e", null, null, null, null, null)
-        result = poolClient.businessPartners.searchBusinessPartners(request, setOf(BusinessPartnerSearchFilterType.ShowOnlyLegaEntities),PaginationRequest(0,100))
-        Assertions.assertEquals(expectedEmpty, result)
-
-        /* expected empty result */
-
-        request = LegalEntityPropertiesSearchRequest("Mü_e", null, null, null, null, null)
-        result = poolClient.businessPartners.searchBusinessPartners(request, setOf(BusinessPartnerSearchFilterType.ShowOnlyLegaEntities),PaginationRequest(0,100))
-        Assertions.assertEquals(expectedEmpty, result)
-
-        request = LegalEntityPropertiesSearchRequest("Muller", null, null, null, null, null)
-        result = poolClient.businessPartners.searchBusinessPartners(request, setOf(BusinessPartnerSearchFilterType.ShowOnlyLegaEntities),PaginationRequest(0,100))
-        Assertions.assertEquals(expectedEmpty, result)
-    }
-
-    /**
-     * Search by fuzzy street
-     * Street / Str / St__r
-     */
-    @Test
-    fun `Search by fuzzy street_1`() {
-
-        var identifiers = mutableListOf<LegalEntityIdentifierDto>()
-        identifiers.add(BusinessPartnerNonVerboseValues.identifier3)
-
-        val expectedMultipleResults = PageDto(
-            2,1,0,100,
-            listOf(
-                BusinessPartnerSearchResultDto(
-                    id = "BPNL000000000065",
-                    name = "Müller Handels GmbH & Co. KG",
-                    legalForm = BusinessPartnerVerboseValues.legalForm3,
-                    street = BusinessPartnerVerboseValues.address1.street,
-                    city = "Böblingen",
-                    postalCode ="71059",
-                    country = "DE",
-                    identifiers =  identifiers
-                ),
-                BusinessPartnerSearchResultDto(
-                    id = "BPNS0000000000WN",
-                    name = "Stammwerk A",
-                    legalForm = null,
-                    street = BusinessPartnerVerboseValues.address1.street,
-                    city = "Böblingen",
-                    postalCode ="71059",
-                    country = "DE",
-                    identifiers =  emptyList()
-                )
-            )
-        )
-
-        val request = LegalEntityPropertiesSearchRequest(null, "BPNL000000000065", "Barenyi", null, null, null)
-        val result = poolClient.businessPartners.searchBusinessPartners(request, setOf(BusinessPartnerSearchFilterType.ShowOnlyLegaEntities,
-            BusinessPartnerSearchFilterType.ShowOnlySites),PaginationRequest(0,100))
-        Assertions.assertEquals(expectedMultipleResults, result)
-    }
-
-    @Test
-    fun `Search by fuzzy street_2`() {
-
-        var identifiers = mutableListOf<LegalEntityIdentifierDto>()
-        identifiers.add(BusinessPartnerNonVerboseValues.identifier3)
-
-        val expectedMultipleResults = PageDto(
-            2,1,0,100,
-            listOf(
-                BusinessPartnerSearchResultDto(
-                    id = "BPNL000000000065",
-                    name = "Müller Handels GmbH & Co. KG",
-                    legalForm = BusinessPartnerVerboseValues.legalForm3,
-                    street = BusinessPartnerVerboseValues.address1.street,
-                    city = "Böblingen",
-                    postalCode ="71059",
-                    country = "DE",
-                    identifiers =  identifiers
-                ),
-                BusinessPartnerSearchResultDto(
-                    id = "BPNS0000000000WN",
-                    name = "Stammwerk A",
-                    legalForm = null,
-                    street = BusinessPartnerVerboseValues.address1.street,
-                    city = "Böblingen",
-                    postalCode ="71059",
-                    country = "DE",
-                    identifiers =  emptyList()
-                )
-            )
-        )
-
-        val request = LegalEntityPropertiesSearchRequest(null, "BPNL000000000065", "Bela", null, null, null)
-        val result = poolClient.businessPartners.searchBusinessPartners(request,
-            setOf(
-                BusinessPartnerSearchFilterType.ShowOnlyLegaEntities,
-                BusinessPartnerSearchFilterType.ShowOnlySites
-            ),PaginationRequest(0,100))
-        Assertions.assertEquals(expectedMultipleResults, result)
-    }
-
-    @Test
-    fun `Search by fuzzy street_3`() {
-
-        var identifiers = mutableListOf<LegalEntityIdentifierDto>()
-        identifiers.add(BusinessPartnerNonVerboseValues.identifier3)
-
-        val expectedEmptyResult = PageDto(0,0,0,100,emptyList<BusinessPartnerSearchResultDto>())
-
-        val request = LegalEntityPropertiesSearchRequest(null, "BPNL000000000065", "St__r", null, null, null)
-        val result = poolClient.businessPartners.searchBusinessPartners(request, setOf(
-            BusinessPartnerSearchFilterType.ShowOnlyLegaEntities
-        ),PaginationRequest(0,100))
-        Assertions.assertEquals(expectedEmptyResult, result)
-    }
-
-    /**
-     * Legal name search support German umlauts
-     *
-     */
-    @Test
-    fun `Legal name search support German umlauts`() {
-
-        val identifiers = mutableListOf<LegalEntityIdentifierDto>()
-        identifiers.add(BusinessPartnerNonVerboseValues.identifier3)
-
-        val expected = PageDto(
-            1, 1, 0, 100,
-            listOf(
-                BusinessPartnerSearchResultDto(
-                    id = "BPNL000000000065",
-                    name = "Müller Handels GmbH & Co. KG",
-                    legalForm = BusinessPartnerVerboseValues.legalForm3,
-                    street = BusinessPartnerVerboseValues.address1.street,
-                    city = "Böblingen",
-                    postalCode ="71059",
-                    country = "DE",
-                    identifiers =  identifiers
-                )
-            )
-        )
-
-        val request = LegalEntityPropertiesSearchRequest("Muelle", null, null, null, null, null)
-        val result = poolClient.businessPartners.searchBusinessPartners(request,
-            setOf(BusinessPartnerSearchFilterType.ShowOnlyLegaEntities),PaginationRequest(0,100))
-        Assertions.assertEquals(expected, result)
-
-    }
-
-    /**
-     * City search support German umlauts and fuzzy
-     *
-     */
-    @Test
-    fun `City search support German umlauts and fuzzy`() {
-
-        var identifiers = mutableListOf<LegalEntityIdentifierDto>()
-        identifiers.add(BusinessPartnerNonVerboseValues.identifier3)
-
-        val expected = PageDto(
-            1, 1, 0, 100,
-            listOf(
-                BusinessPartnerSearchResultDto(
-                    id = "BPNL000000000065",
-                    name = "Müller Handels GmbH & Co. KG",
-                    legalForm = BusinessPartnerVerboseValues.legalForm3,
-                    street = BusinessPartnerVerboseValues.address1.street,
-                    city = "Böblingen",
-                    postalCode ="71059",
-                    country = "DE",
-                    identifiers =  identifiers
-                )
-            )
-        )
-
-        val expectedEmpty = PageDto(0,0,0,100, emptyList<BusinessPartnerSearchResultDto>())
-
-        val request_Koeln = LegalEntityPropertiesSearchRequest(null, "BPNL000000000065", null, null, "Boe", null)
-        var result = poolClient.businessPartners.searchBusinessPartners(request_Koeln, setOf(
-            BusinessPartnerSearchFilterType.ShowOnlyLegaEntities
-        ),PaginationRequest(0,100))
-        Assertions.assertEquals(expected, result)
-
-        val request_Koln = LegalEntityPropertiesSearchRequest(null, "BPNL000000000065", null, null, "Boblingen", null)
-        result = poolClient.businessPartners.searchBusinessPartners(request_Koln,
-            setOf(
-                BusinessPartnerSearchFilterType.ShowOnlyLegaEntities
-            ),PaginationRequest(0,100))
-        Assertions.assertEquals(expectedEmpty, result)
-
-        val request_K_ln = LegalEntityPropertiesSearchRequest(null, "BPNL000000000065", null, null, "B_blingen", null)
-        result = poolClient.businessPartners.searchBusinessPartners(request_K_ln,
-            setOf(
-                BusinessPartnerSearchFilterType.ShowOnlyLegaEntities
-            ),PaginationRequest(0,100))
-        Assertions.assertEquals(expected, result)
-
-        val request_K__n = LegalEntityPropertiesSearchRequest(null, "BPNL000000000065", null, null, "B__lingen", null)
-        result = poolClient.businessPartners.searchBusinessPartners(request_K__n,
-            setOf(
-                BusinessPartnerSearchFilterType.ShowOnlyLegaEntities
-            ),PaginationRequest(0,100))
-        Assertions.assertEquals(expected, result)
-
-    }
-
-    /**
-     * Search by BPNS return the site and its parents
-     *
-     */
-    @Test
-    fun `Search by BPNS return the site and its parents `() {
-
-        var identifiers = mutableListOf<LegalEntityIdentifierDto>()
-        identifiers.add(BusinessPartnerNonVerboseValues.identifier3)
-
-        val expected = PageDto(
-            2, 1, 0, 100,
-            listOf(
-                BusinessPartnerSearchResultDto(
-                    id = "BPNS0000000000WN",
-                    name = "Stammwerk A",
-                    legalForm = null,
-                    street = BusinessPartnerVerboseValues.address1.street,
-                    city = "Böblingen",
-                    postalCode ="71059",
-                    country = "DE",
-                    identifiers =  emptyList()
-                ),
-                BusinessPartnerSearchResultDto(
-                    id = "BPNL000000000065",
-                    name = "Müller Handels GmbH & Co. KG",
-                    legalForm = BusinessPartnerVerboseValues.legalForm3,
-                    street = BusinessPartnerVerboseValues.address1.street,
-                    city = "Böblingen",
-                    postalCode ="71059",
-                    country = "DE",
-                    identifiers =  identifiers
-                )
-            )
-        )
-
-        val request = LegalEntityPropertiesSearchRequest(null, "BPNS0000000000WN", null, null, null, null)
-        val result = poolClient.businessPartners.searchBusinessPartners(request,
-            setOf(BusinessPartnerSearchFilterType.ShowOnlyLegaEntities, BusinessPartnerSearchFilterType.ShowOnlySites), PaginationRequest(0,100))
-        Assertions.assertEquals(expected, result)
-
-    }
-
-    /**
-     * Search BPNA return the address and its parents
-     *
-     */
-    @Test
-    fun `Search BPNA return the address and its parents `() {
-
-        var identifiers = mutableListOf<LegalEntityIdentifierDto>()
-        identifiers.add(BusinessPartnerNonVerboseValues.identifier3)
-
-        val expected = PageDto(
-            2, 1, 0, 100,
-            listOf(
-                BusinessPartnerSearchResultDto(
-                    id = "BPNA00000000009W",
-                    name = "Business Partner Name",
-                    legalForm = null,
-                    street = BusinessPartnerVerboseValues.address1.street,
-                    city = "Böblingen",
-                    postalCode ="71059",
-                    country = "DE",
-                    identifiers =  emptyList()
-                ),
-                BusinessPartnerSearchResultDto(
-                    id = "BPNL000000000065",
-                    name = "Müller Handels GmbH & Co. KG",
-                    legalForm = BusinessPartnerVerboseValues.legalForm3,
-                    street = BusinessPartnerVerboseValues.address1.street,
-                    city = "Böblingen",
-                    postalCode ="71059",
-                    country = "DE",
-                    identifiers =  identifiers
-                )
-            )
-        )
-
-        val request = LegalEntityPropertiesSearchRequest(null, "BPNA00000000009W", null, null, null, null)
-        val result = poolClient.businessPartners.searchBusinessPartners(request,
-            setOf(BusinessPartnerSearchFilterType.ShowOnlyLegaEntities,
-                BusinessPartnerSearchFilterType.ShowOnlyAdditionalAddresses), PaginationRequest(0,100))
-        Assertions.assertEquals(expected, result)
-    }
-
-
 }

@@ -20,33 +20,25 @@
 package org.eclipse.tractusx.bpdm.pool.api.model.response
 
 import io.swagger.v3.oas.annotations.media.Schema
+import org.eclipse.tractusx.bpdm.common.dto.BusinessPartnerRole
+import org.eclipse.tractusx.bpdm.common.dto.openapidescription.CommonDescription
+import org.eclipse.tractusx.bpdm.gate.api.model.BusinessPartnerIdentifierDto
+import org.eclipse.tractusx.bpdm.gate.api.model.BusinessPartnerStateDto
+import org.eclipse.tractusx.bpdm.gate.api.model.IBaseBusinessPartnerGateDto
+import org.eclipse.tractusx.bpdm.gate.api.model.response.AddressComponentOutputDto
+import org.eclipse.tractusx.bpdm.gate.api.model.response.LegalEntityRepresentationOutputDto
+import org.eclipse.tractusx.bpdm.gate.api.model.response.SiteRepresentationOutputDto
 import org.eclipse.tractusx.bpdm.pool.api.model.LegalEntityIdentifierDto
 import org.eclipse.tractusx.bpdm.pool.api.model.LegalFormDto
 import org.eclipse.tractusx.bpdm.pool.api.model.StreetDto
+import java.time.Instant
 
-@Schema(name = "BusinessPartnerSearchResultDto", description = "")
+@Schema(name = "BusinessPartnerSearchResultDto", description = "Response of the business partner search result.")
 data class BusinessPartnerSearchResultDto(
-    @Schema(description = "BPN L/S/A")
-    val id: String,
-
-    @Schema(description = "BPN L/S/A")
-    val name: String?,
-
-    @Schema(description = "Legal Form")
-    val legalForm: LegalFormDto?,
-
-    @Schema(description = "Street")
-    val street: StreetDto?,
-
-    @Schema(description = "City")
-    val city: String,
-
-    @Schema(description = "PostalCode")
-    val postalCode: String,
-
-    @Schema(description = "Country")
-    val country: String,
-
-    @Schema(description = "")
-    val identifiers: List<LegalEntityIdentifierDto>
+    val identifiers: Collection<BusinessPartnerIdentifierDto> = emptyList(),
+    val states: Collection<BusinessPartnerStateDto> = emptyList(),
+    val legalEntity: LegalEntityRepresentationOutputDto,
+    val site: SiteRepresentationOutputDto?,
+    val address: AddressComponentOutputDto,
+    val isParticipantData: Boolean
 )
