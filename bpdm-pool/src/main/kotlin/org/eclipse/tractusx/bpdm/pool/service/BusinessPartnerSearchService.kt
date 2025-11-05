@@ -340,32 +340,38 @@ class BusinessPartnerSearchService(
                     country = result.legalAddress.physicalPostalAddress.country
                 ),
                 confidenceCriteria = ConfidenceCriteriaDto(
-                    sharedByOwner = result.confidenceCriteria.sharedByOwner,
-                    checkedByExternalDataSource = result.confidenceCriteria.checkedByExternalDataSource,
-                    numberOfSharingMembers = result.confidenceCriteria.numberOfBusinessPartners,
-                    lastConfidenceCheckAt = result.confidenceCriteria.lastConfidenceCheckAt,
-                    nextConfidenceCheckAt = result.confidenceCriteria.nextConfidenceCheckAt,
-                    confidenceLevel = result.confidenceCriteria.confidenceLevel
+                    sharedByOwner = result.legalAddress.confidenceCriteria.sharedByOwner,
+                    checkedByExternalDataSource = result.legalAddress.confidenceCriteria.checkedByExternalDataSource,
+                    numberOfSharingMembers = result.legalAddress.confidenceCriteria.numberOfBusinessPartners,
+                    lastConfidenceCheckAt = result.legalAddress.confidenceCriteria.lastConfidenceCheckAt,
+                    nextConfidenceCheckAt = result.legalAddress.confidenceCriteria.nextConfidenceCheckAt,
+                    confidenceLevel = result.legalAddress.confidenceCriteria.confidenceLevel
                 )
             ),
-            isParticipantData = false,
+            isParticipantData = result.isCatenaXMemberData,
         )
     }
     private fun searchSiteResultMapping(result: SiteDb): BusinessPartnerSearchResultDto {
 
         return BusinessPartnerSearchResultDto(
-            identifiers = emptyList(),
+            identifiers = result.legalEntity.identifiers.map { it ->
+                BusinessPartnerIdentifierDto(
+                    type = it.type.technicalKey,
+                    value = it.value,
+                    issuingBody = it.issuingBody
+                )
+            },
             legalEntity = LegalEntityRepresentationOutputDto(
                 legalEntityBpn = result.legalEntity.bpn,
                 legalName = result.legalEntity.legalName.value,
                 legalForm = result.legalEntity.legalForm?.name,
                 confidenceCriteria = ConfidenceCriteriaDto(
-                    sharedByOwner = result.confidenceCriteria.sharedByOwner,
-                    checkedByExternalDataSource = result.confidenceCriteria.checkedByExternalDataSource,
-                    numberOfSharingMembers = result.confidenceCriteria.numberOfBusinessPartners,
-                    lastConfidenceCheckAt = result.confidenceCriteria.lastConfidenceCheckAt,
-                    nextConfidenceCheckAt = result.confidenceCriteria.nextConfidenceCheckAt,
-                    confidenceLevel = result.confidenceCriteria.confidenceLevel
+                    sharedByOwner = result.legalEntity.confidenceCriteria.sharedByOwner,
+                    checkedByExternalDataSource = result.legalEntity.confidenceCriteria.checkedByExternalDataSource,
+                    numberOfSharingMembers = result.legalEntity.confidenceCriteria.numberOfBusinessPartners,
+                    lastConfidenceCheckAt = result.legalEntity.confidenceCriteria.lastConfidenceCheckAt,
+                    nextConfidenceCheckAt = result.legalEntity.confidenceCriteria.nextConfidenceCheckAt,
+                    confidenceLevel = result.legalEntity.confidenceCriteria.confidenceLevel
                 )
             ),
             site = SiteRepresentationOutputDto (
@@ -403,12 +409,12 @@ class BusinessPartnerSearchService(
                     country = result.mainAddress.physicalPostalAddress.country
                 ),
                 confidenceCriteria = ConfidenceCriteriaDto(
-                    sharedByOwner = result.confidenceCriteria.sharedByOwner,
-                    checkedByExternalDataSource = result.confidenceCriteria.checkedByExternalDataSource,
-                    numberOfSharingMembers = result.confidenceCriteria.numberOfBusinessPartners,
-                    lastConfidenceCheckAt = result.confidenceCriteria.lastConfidenceCheckAt,
-                    nextConfidenceCheckAt = result.confidenceCriteria.nextConfidenceCheckAt,
-                    confidenceLevel = result.confidenceCriteria.confidenceLevel
+                    sharedByOwner = result.mainAddress.confidenceCriteria.sharedByOwner,
+                    checkedByExternalDataSource = result.mainAddress.confidenceCriteria.checkedByExternalDataSource,
+                    numberOfSharingMembers = result.mainAddress.confidenceCriteria.numberOfBusinessPartners,
+                    lastConfidenceCheckAt = result.mainAddress.confidenceCriteria.lastConfidenceCheckAt,
+                    nextConfidenceCheckAt = result.mainAddress.confidenceCriteria.nextConfidenceCheckAt,
+                    confidenceLevel = result.mainAddress.confidenceCriteria.confidenceLevel
                 )
             ),
             isParticipantData = false
@@ -416,36 +422,37 @@ class BusinessPartnerSearchService(
     }
     private fun searchAddressResultMapping(result: LogisticAddressDb): BusinessPartnerSearchResultDto {
 
+        val addressType = when (result.id) {
+            result.legalEntity?.legalAddress?.id -> AddressType.LegalAddress
+            result.site?.mainAddress?.id        -> AddressType.SiteMainAddress
+            else                                -> AddressType.AdditionalAddress
+        }
+
         return BusinessPartnerSearchResultDto(
-            identifiers = emptyList(),
+            identifiers = result.legalEntity?.identifiers?.map { it ->
+                BusinessPartnerIdentifierDto(
+                    type = it.type.technicalKey,
+                    value = it.value,
+                    issuingBody = it.issuingBody
+                )
+            } as Collection<BusinessPartnerIdentifierDto>,
             legalEntity = LegalEntityRepresentationOutputDto(
                 legalEntityBpn = result.legalEntity!!.bpn,
                 legalName = result.legalEntity?.legalName?.value,
                 legalForm = result.legalEntity?.legalForm?.name,
                 confidenceCriteria = ConfidenceCriteriaDto(
-                    sharedByOwner = result.confidenceCriteria.sharedByOwner,
-                    checkedByExternalDataSource = result.confidenceCriteria.checkedByExternalDataSource,
-                    numberOfSharingMembers = result.confidenceCriteria.numberOfBusinessPartners,
-                    lastConfidenceCheckAt = result.confidenceCriteria.lastConfidenceCheckAt,
-                    nextConfidenceCheckAt = result.confidenceCriteria.nextConfidenceCheckAt,
-                    confidenceLevel = result.confidenceCriteria.confidenceLevel
+                    sharedByOwner = result.legalEntity!!.confidenceCriteria.sharedByOwner,
+                    checkedByExternalDataSource = result.legalEntity!!.confidenceCriteria.checkedByExternalDataSource,
+                    numberOfSharingMembers = result.legalEntity!!.confidenceCriteria.numberOfBusinessPartners,
+                    lastConfidenceCheckAt = result.legalEntity!!.confidenceCriteria.lastConfidenceCheckAt,
+                    nextConfidenceCheckAt = result.legalEntity!!.confidenceCriteria.nextConfidenceCheckAt,
+                    confidenceLevel = result.legalEntity!!.confidenceCriteria.confidenceLevel
                 )
             ),
-            site = SiteRepresentationOutputDto (
-                siteBpn = result.site!!.bpn,
-                name = result.site?.name,
-                confidenceCriteria = ConfidenceCriteriaDto(
-                    sharedByOwner = result.confidenceCriteria.sharedByOwner,
-                    checkedByExternalDataSource = result.confidenceCriteria.checkedByExternalDataSource,
-                    numberOfSharingMembers = result.confidenceCriteria.numberOfBusinessPartners,
-                    lastConfidenceCheckAt = result.confidenceCriteria.lastConfidenceCheckAt,
-                    nextConfidenceCheckAt = result.confidenceCriteria.nextConfidenceCheckAt,
-                    confidenceLevel = result.confidenceCriteria.confidenceLevel
-                )
-            ),
+            site = null,
             address = AddressComponentOutputDto(
                 name = null,
-                addressType = AddressType.AdditionalAddress,
+                addressType = addressType,
                 addressBpn = result.bpn,
                 physicalPostalAddress = PhysicalPostalAddressDto (
                     geographicCoordinates = null,
