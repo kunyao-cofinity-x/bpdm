@@ -24,7 +24,7 @@ import org.eclipse.tractusx.bpdm.pool.entity.LegalEntityDb
 import org.eclipse.tractusx.bpdm.pool.entity.LogisticAddressDb
 import org.eclipse.tractusx.bpdm.pool.entity.PhysicalPostalAddressDb
 import org.eclipse.tractusx.bpdm.pool.entity.SiteDb
-import org.eclipse.tractusx.bpdm.pool.entity.StreetDb
+import org.eclipse.tractusx.bpdm.pool.util.SearchNormalization
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.domain.Specification
@@ -88,14 +88,11 @@ interface SiteRepository : JpaRepository<SiteDb, Long>, JpaSpecificationExecutor
             Specification<SiteDb> { root, _, builder ->
                 street?.takeIf { it.isNotBlank() }?.let {
                     val joinAddress = root.join<SiteDb, LogisticAddressDb>("addresses")
-                    builder.like (
-                        builder.lower(
-                            joinAddress
-                                .get<PhysicalPostalAddressDb>("physicalPostalAddress")
-                                .get<StreetDb>("street")
-                                .get<String>("name")
-                        ),
-                        "%${it.lowercase()}%"
+                    builder.like(
+                        joinAddress
+                            .get<PhysicalPostalAddressDb>("physicalPostalAddress")
+                            .get<String>("streetNameNormalized"),
+                        "%${SearchNormalization.normalize(street)}%"
                     )
                 }
             }
@@ -131,11 +128,9 @@ interface SiteRepository : JpaRepository<SiteDb, Long>, JpaSpecificationExecutor
             Specification<SiteDb> { root, _, builder ->
                 country?.takeIf { it.isNotBlank() }?.let {
                     val joinAddress = root.join<SiteDb, LogisticAddressDb>("addresses")
-                    builder.like (
-                        builder.lower(
-                            joinAddress.get<PhysicalPostalAddressDb>("physicalPostalAddress").get("country")
-                        ),
-                        "%${it.lowercase()}%"
+                    builder.like(
+                        joinAddress.get<PhysicalPostalAddressDb>("physicalPostalAddress").get("countryNormalized"),
+                        "%${SearchNormalization.normalize(country)}%"
                     )
                 }
             }

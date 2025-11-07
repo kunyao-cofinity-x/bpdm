@@ -22,10 +22,9 @@ package org.eclipse.tractusx.bpdm.pool.repository
 import org.eclipse.tractusx.bpdm.pool.api.model.request.LegalEntityPropertiesSearchRequest
 import org.eclipse.tractusx.bpdm.pool.entity.LegalEntityDb
 import org.eclipse.tractusx.bpdm.pool.entity.LogisticAddressDb
-import org.eclipse.tractusx.bpdm.pool.entity.NameDb
 import org.eclipse.tractusx.bpdm.pool.entity.PhysicalPostalAddressDb
 import org.eclipse.tractusx.bpdm.pool.entity.SiteDb
-import org.eclipse.tractusx.bpdm.pool.entity.StreetDb
+import org.eclipse.tractusx.bpdm.pool.util.SearchNormalization
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.domain.Specification
@@ -96,10 +95,10 @@ interface LogisticAddressRepository : JpaRepository<LogisticAddressDb, Long>, Jp
         private fun byStreet(street: String?) =
             Specification<LogisticAddressDb> { root, _, builder ->
                 street?.takeIf { it.isNotBlank() }?.let {
-                    builder.equal(root.get<LogisticAddressDb>("physicalPostalAddress")
-                        .get<StreetDb>("street")
-                        .get<String>("name"),
-                        "%${it.lowercase()}%")
+                    builder.like(
+                        root.get<PhysicalPostalAddressDb>("physicalPostalAddress").get("streetNameNormalized"),
+                        "%${SearchNormalization.normalize(street)}%"
+                    )
                 }
             }
 
@@ -127,7 +126,10 @@ interface LogisticAddressRepository : JpaRepository<LogisticAddressDb, Long>, Jp
         private fun byCountry(country: String?) =
             Specification<LogisticAddressDb> { root, _, builder ->
                 country?.takeIf { it.isNotBlank() }?.let {
-                    builder.equal(root.get<LogisticAddressDb>("physicalPostalAddress").get<String>("country"),"%${it.lowercase()}%")
+                    builder.like(
+                        root.get<PhysicalPostalAddressDb>("physicalPostalAddress").get("countryNormalized"),
+                        "%${SearchNormalization.normalize(country)}%"
+                    )
                 }
             }
 

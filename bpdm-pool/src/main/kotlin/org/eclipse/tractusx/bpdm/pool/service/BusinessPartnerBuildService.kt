@@ -33,6 +33,7 @@ import org.eclipse.tractusx.bpdm.pool.exception.BpdmValidationException
 import org.eclipse.tractusx.bpdm.pool.repository.LegalEntityRepository
 import org.eclipse.tractusx.bpdm.pool.repository.LogisticAddressRepository
 import org.eclipse.tractusx.bpdm.pool.repository.SiteRepository
+import org.eclipse.tractusx.bpdm.pool.util.SearchNormalization
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
@@ -644,6 +645,7 @@ class BusinessPartnerBuildService(
             legalEntity.currentness = createCurrentnessTimestamp()
 
             legalEntity.legalName = NameDb(value = legalEntityDto.legalName, shortName = legalEntityDto.legalShortName)
+            legalEntity.legalNameNormalized = SearchNormalization.normalize(legalEntityDto.legalName)
 
             legalEntity.legalForm = legalEntityDto.legalForm?.let { metadataMap.legalForms[it]!! }
 

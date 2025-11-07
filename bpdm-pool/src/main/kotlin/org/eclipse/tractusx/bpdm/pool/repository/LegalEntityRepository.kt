@@ -26,6 +26,7 @@ import org.eclipse.tractusx.bpdm.pool.entity.LogisticAddressDb
 import org.eclipse.tractusx.bpdm.pool.entity.NameDb
 import org.eclipse.tractusx.bpdm.pool.entity.PhysicalPostalAddressDb
 import org.eclipse.tractusx.bpdm.pool.entity.StreetDb
+import org.eclipse.tractusx.bpdm.pool.util.SearchNormalization
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.domain.Specification
@@ -80,13 +81,10 @@ interface LegalEntityRepository : JpaRepository<LegalEntityDb, Long>, JpaSpecifi
         fun byLegalNameSupportGermanUmlauts(legalName: String?) =
             Specification<LegalEntityDb> { root, _, builder ->
                 legalName?.takeIf { it.isNotBlank() }?.let {
-                    val normalized = normalizeGermanUmlauts(legalName)
-                    val expression = builder.lower(root.get<NameDb>(LegalEntityDb::legalName.name).get(NameDb::value.name))
-                    val predicates = normalized.map { variant ->
-                        builder.like(expression, "%$variant%")
-                    }
-
-                    builder.or(*predicates.toTypedArray())
+                    builder.like(
+                        root.get(LegalEntityDb::legalNameNormalized.name),
+                        "%${SearchNormalization.normalize(legalName)}%"
+                    )
                 }
             }
 
@@ -94,14 +92,11 @@ interface LegalEntityRepository : JpaRepository<LegalEntityDb, Long>, JpaSpecifi
             Specification<LegalEntityDb> { root, _, builder ->
                 street?.takeIf { it.isNotBlank() }?.let {
                     val joinAddress = root.join<LegalEntityDb, LogisticAddressDb>("addresses")
-                    builder.like (
-                        builder.lower(
-                            joinAddress
-                                .get<PhysicalPostalAddressDb>("physicalPostalAddress")
-                                .get<StreetDb>("street")
-                                .get<String>("name")
-                        ),
-                        "%${it.lowercase()}%"
+                    builder.like(
+                        joinAddress
+                            .get<PhysicalPostalAddressDb>("physicalPostalAddress")
+                            .get<String>("streetNameNormalized"),
+                        "%${SearchNormalization.normalize(street)}%"
                     )
                 }
             }
@@ -138,11 +133,9 @@ interface LegalEntityRepository : JpaRepository<LegalEntityDb, Long>, JpaSpecifi
             Specification<LegalEntityDb> { root, _, builder ->
                 country?.takeIf { it.isNotBlank() }?.let {
                     val joinAddress = root.join<LegalEntityDb, LogisticAddressDb>("addresses")
-                    builder.like (
-                        builder.lower(
-                            joinAddress.get<PhysicalPostalAddressDb>("physicalPostalAddress").get("country")
-                        ),
-                        "%${it.lowercase()}%"
+                    builder.like(
+                        joinAddress.get<PhysicalPostalAddressDb>("physicalPostalAddress").get("countryNormalized"),
+                        "%${SearchNormalization.normalize(country)}%"
                     )
                 }
             }

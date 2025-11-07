@@ -46,6 +46,7 @@ import org.eclipse.tractusx.bpdm.pool.dto.LegalEntityMetadataDto
 import org.eclipse.tractusx.bpdm.pool.entity.*
 import org.eclipse.tractusx.bpdm.pool.repository.*
 import org.eclipse.tractusx.bpdm.pool.service.*
+import org.eclipse.tractusx.bpdm.pool.util.SearchNormalization
 import org.eclipse.tractusx.bpdm.pool.service.BusinessPartnerBuildService.AddressMetadataMapping
 import org.eclipse.tractusx.bpdm.pool.service.BusinessPartnerBuildService.Companion.createAlternativeAddress
 import org.eclipse.tractusx.bpdm.pool.service.BusinessPartnerBuildService.Companion.createConfidenceCriteria
@@ -552,6 +553,7 @@ class LegalEntityLegacyServiceMapper(
         legalEntity.currentness = createCurrentnessTimestamp()
 
         legalEntity.legalName = NameDb(value = legalEntityDto.legalName, shortName = legalEntityDto.legalShortName)
+        legalEntity.legalNameNormalized = SearchNormalization.normalize(legalEntityDto.legalName)
 
         legalEntity.legalForm = legalEntityDto.legalForm?.let { metadataMap.legalForms[it]!! }
 
